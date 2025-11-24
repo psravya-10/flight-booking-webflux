@@ -28,6 +28,9 @@
 	</scm>
 	<properties>
 		<java.version>21</java.version>
+		
+  <sonar.organization>psravya-10</sonar.organization>
+
 	</properties>
 	<dependencies>
 		<dependency>
