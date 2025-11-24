@@ -1,19 +1,16 @@
 package com.flightapp.service;
 
 import com.flightapp.dto.InventoryRequest;
-import com.flightapp.dto.SearchRequest;
 import com.flightapp.model.Flight;
 import com.flightapp.model.enums.AirlineName;
 import com.flightapp.model.enums.PlaceName;
 import com.flightapp.repository.FlightRepository;
-import com.flightapp.service.FlightServiceImpl;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
@@ -32,20 +29,41 @@ public class FlightServiceImplTest {
     @InjectMocks
     private FlightServiceImpl flightService;
 
-    private InventoryRequest inventoryRequest;
+    private InventoryRequest request;
+    private Flight savedFlight;
 
     @BeforeEach
-    void setUp() {
+    void setup() {
         MockitoAnnotations.openMocks(this);
 
-        inventoryRequest = new InventoryRequest();
-        inventoryRequest.setAirlineName(AirlineName.INDIGO);
-        inventoryRequest.setFromPlace(PlaceName.HYDERABAD);
-        inventoryRequest.setToPlace(PlaceName.DELHI);
-        inventoryRequest.setDepartureDate(LocalDate.now());
-        inventoryRequest.setDepartureTime(LocalTime.now());
-        inventoryRequest.setTotalSeats(100);
-        inventoryRequest.setOneWayPrice(BigDecimal.valueOf(2000));
+        request = new InventoryRequest();
+        request.setAirlineName(AirlineName.INDIGO);
+        request.setAirlineLogo("logo.png");
+        request.setFromPlace(PlaceName.HYDERABAD);
+        request.setToPlace(PlaceName.CHENNAI);
+        request.setDepartureDate(LocalDate.now().plusDays(1));
+        request.setDepartureTime(LocalTime.NOON);
+        request.setReturnDate(LocalDate.now().plusDays(3));
+        request.setReturnTime(LocalTime.NOON.plusHours(2));
+        request.setOneWayPrice(new BigDecimal("3000"));
+        request.setRoundTripPrice(new BigDecimal("5500"));
+        request.setTotalSeats(100);
+
+        savedFlight = Flight.builder()
+                .id("1")
+                .airlineName(request.getAirlineName())
+                .airlineLogo(request.getAirlineLogo())
+                .fromPlace(request.getFromPlace())
+                .toPlace(request.getToPlace())
+                .departureDate(request.getDepartureDate())
+                .departureTime(request.getDepartureTime())
+                .returnDate(request.getReturnDate())
+                .returnTime(request.getReturnTime())
+                .oneWayPrice(request.getOneWayPrice())
+                .roundTripPrice(request.getRoundTripPrice())
+                .totalSeats(request.getTotalSeats())
+                .bookedSeats(0)
+                .build();
     }
 
     @Test
@@ -54,26 +72,21 @@ public class FlightServiceImplTest {
                 any(), any(), any(), any(), any()
         )).thenReturn(Mono.just(false));
 
-        when(flightRepository.save(any()))
-                .thenReturn(Mono.just(new Flight()));
+        when(flightRepository.save(any())).thenReturn(Mono.just(savedFlight));
 
-        StepVerifier.create(flightService.addInventory(inventoryRequest))
-                .expectNextCount(1)
+        StepVerifier.create(flightService.addInventory(request))
+                .expectNext(savedFlight)
                 .verifyComplete();
     }
 
     @Test
-    void testSearchFlights() {
-        SearchRequest request = new SearchRequest();
-        request.setFromPlace(PlaceName.HYDERABAD);
-        request.setToPlace(PlaceName.DELHI);
-        request.setJourneyDate(LocalDate.now());
+    void testAddInventory_FlightAlreadyExists() {
+        when(flightRepository.existsByAirlineNameAndFromPlaceAndToPlaceAndDepartureDateAndDepartureTime(
+                any(), any(), any(), any(), any()
+        )).thenReturn(Mono.just(true));
 
-        when(flightRepository.findByFromPlaceAndToPlaceAndDepartureDate(any(), any(), any()))
-                .thenReturn(Flux.just(new Flight()));
-
-        StepVerifier.create(flightService.searchFlights(request))
-                .expectNextCount(1)
-                .verifyComplete();
+        StepVerifier.create(flightService.addInventory(request))
+                .expectErrorMatches(ex -> ex.getMessage().contains("already exists"))
+                .verify();
     }
 }

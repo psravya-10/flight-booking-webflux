@@ -42,4 +42,6 @@ public class BookingRequest {
 
     @NotNull(message = "Trip type required")
     private TripType tripType;
+
+	
 }
